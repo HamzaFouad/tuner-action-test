@@ -1,0 +1,39 @@
+name: Tuner
+# Each test PR sets its case in .github/case.env (one key=value per line).
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: tuner-staging-agent
+  cancel-in-progress: false
+jobs:
+  simulations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: case
+        run: grep -E '^[a-z_]+=' .github/case.env >> "$GITHUB_OUTPUT"
+      - id: tuner
+        uses: usetuner/tuner-action@feat/ENG-1640-action-v1
+        with:
+          api-key: ${{ secrets.TUNER_API_KEY }}
+          base-url: https://voice-api.staging.ginni.ai
+          agent: ${{ steps.case.outputs.agent }}
+          tag: ${{ steps.case.outputs.tag }}
+          scenario: ${{ steps.case.outputs.scenario }}
+          timeout: ${{ steps.case.outputs.timeout }}
+          fail-on-tuner-error: ${{ steps.case.outputs.fail_on_tuner_error }}
+          comment: ${{ steps.case.outputs.comment }}
+          meta: ${{ steps.case.outputs.meta }}
+      - if: always()
+        env:
+          RUN_ID: ${{ steps.tuner.outputs.run-id }}
+          RESULT: ${{ steps.tuner.outputs.result }}
+          REASON: ${{ steps.tuner.outputs.reason }}
+          EXIT_CODE: ${{ steps.tuner.outputs.exit-code }}
+        run: echo "run=$RUN_ID result=$RESULT reason=$REASON exit=$EXIT_CODE"
